@@ -2,7 +2,7 @@ name: Deploy to Fly Staging
 
 on:
   push:
-      branches: [main]
+      branches: [private-staging]
       tags: ['experimental/*']
 
 env:
