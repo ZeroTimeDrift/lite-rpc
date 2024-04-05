@@ -35,14 +35,13 @@ use solana_lite_rpc_core::stores::{
     block_information_store::{BlockInformation, BlockInformationStore},
     cluster_info_store::ClusterInfo,
     data_cache::{DataCache, SlotCache},
+    stakes_store::StakesStore,
     subscription_store::SubscriptionStore,
     tx_store::TxStore,
 };
 use solana_lite_rpc_core::structures::account_filter::AccountFilters;
 use solana_lite_rpc_core::structures::leaderschedule::CalculatedSchedule;
-use solana_lite_rpc_core::structures::{
-    epoch::EpochCache, identity_stakes::IdentityStakes, notifications::NotificationSender,
-};
+use solana_lite_rpc_core::structures::{epoch::EpochCache, notifications::NotificationSender};
 use solana_lite_rpc_core::traits::address_lookup_table_interface::AddressLookupTableInterface;
 use solana_lite_rpc_core::types::BlockStream;
 use solana_lite_rpc_core::utils::wait_till_block_of_commitment_is_recieved;
@@ -243,7 +242,7 @@ pub async fn start_lite_rpc(args: Config, rpc_client: Arc<RpcClient>) -> anyhow:
     let data_cache = DataCache {
         block_information_store,
         cluster_info: ClusterInfo::default(),
-        identity_stakes: IdentityStakes::new(validator_identity.pubkey()),
+        stakes_store: StakesStore::new(validator_identity.pubkey()),
         slot_cache: SlotCache::new(finalized_block_info.slot),
         tx_subs: SubscriptionStore::default(),
         txs: TxStore {

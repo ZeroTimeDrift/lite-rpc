@@ -3,5 +3,6 @@
 pub mod block_information_store;
 pub mod cluster_info_store;
 pub mod data_cache;
+pub mod stakes_store;
 pub mod subscription_store;
 pub mod tx_store;

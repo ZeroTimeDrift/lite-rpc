@@ -9,11 +9,10 @@ use tokio::sync::RwLock;
 use crate::{
     stores::{
         block_information_store::BlockInformationStore, cluster_info_store::ClusterInfo,
-        subscription_store::SubscriptionStore, tx_store::TxStore,
+        stakes_store::StakesStore, subscription_store::SubscriptionStore, tx_store::TxStore,
     },
     structures::{
         epoch::{Epoch, EpochCache},
-        identity_stakes::IdentityStakes,
         slot_notification::{AtomicSlot, SlotNotification},
         transaction_sent_info::SentTransactionInfo,
     },
@@ -35,7 +34,7 @@ pub struct DataCache {
     pub txs: TxStore,
     pub tx_subs: SubscriptionStore,
     pub slot_cache: SlotCache,
-    pub identity_stakes: IdentityStakes,
+    pub stakes_store: StakesStore,
     pub cluster_info: ClusterInfo,
     pub epoch_data: EpochCache,
     pub leader_schedule: Arc<RwLock<CalculatedSchedule>>,
@@ -84,7 +83,7 @@ impl DataCache {
                 block_time: 0,
             }),
             cluster_info: ClusterInfo::default(),
-            identity_stakes: IdentityStakes::new(Pubkey::new_unique()),
+            stakes_store: StakesStore::new(Pubkey::default()),
             slot_cache: SlotCache::new(0),
             tx_subs: SubscriptionStore::default(),
             txs: TxStore {

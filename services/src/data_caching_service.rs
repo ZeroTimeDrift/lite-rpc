@@ -171,17 +171,14 @@ impl DataCachingService {
         });
 
         let data_cache: DataCache = self.data_cache.clone();
-        let identity_stakes_jh = tokio::spawn(async move {
+        let stakes_cache_jh = tokio::spawn(async move {
             let mut va_notification = va_notification;
             loop {
                 let vote_accounts = va_notification
                     .recv()
                     .await
                     .context("Could not get vote accounts")?;
-                data_cache
-                    .identity_stakes
-                    .update_stakes_for_identity(vote_accounts)
-                    .await;
+                data_cache.stakes_store.update_stakes(vote_accounts).await;
             }
         });
 
@@ -199,7 +196,7 @@ impl DataCachingService {
             block_cache_jh,
             blockinfo_cache_jh,
             cluster_info_jh,
-            identity_stakes_jh,
+            stakes_cache_jh,
             cleaning_service,
         ]
     }

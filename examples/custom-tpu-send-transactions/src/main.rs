@@ -19,11 +19,12 @@ use solana_lite_rpc_core::{
         block_information_store::{BlockInformation, BlockInformationStore},
         cluster_info_store::ClusterInfo,
         data_cache::{DataCache, SlotCache},
+        stakes_store::StakesStore,
         subscription_store::SubscriptionStore,
         tx_store::TxStore,
     },
     structures::{
-        epoch::EpochCache, identity_stakes::IdentityStakes, leaderschedule::CalculatedSchedule,
+        epoch::EpochCache, leaderschedule::CalculatedSchedule,
         transaction_sent_info::SentTransactionInfo,
     },
     utils::wait_till_block_of_commitment_is_recieved,
@@ -320,7 +321,7 @@ async fn main() -> anyhow::Result<()> {
     let data_cache = DataCache {
         block_information_store,
         cluster_info: ClusterInfo::default(),
-        identity_stakes: IdentityStakes::new(validator_identity.pubkey()),
+        stakes_store: StakesStore::new(validator_identity.pubkey()),
         slot_cache: SlotCache::new(finalize_slot),
         tx_subs: SubscriptionStore::default(),
         txs: TxStore {

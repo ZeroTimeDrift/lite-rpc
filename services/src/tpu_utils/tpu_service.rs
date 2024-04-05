@@ -129,7 +129,7 @@ impl TpuService {
             .get_slot_leaders(current_slot, last_slot)
             .await?;
 
-        let identity_stakes = self.data_cache.identity_stakes.get_stakes().await;
+        let identity_stakes = self.data_cache.stakes_store.get_identity_stakes().await;
 
         let enable_tpu_forwards = {
             match identity_stakes.peer_type {
