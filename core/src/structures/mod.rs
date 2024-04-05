@@ -11,6 +11,5 @@ pub mod notifications;
 pub mod prioritization_fee_heap;
 pub mod produced_block;
 pub mod proxy_request_format;
-pub mod rotating_queue;
 pub mod slot_notification;
 pub mod transaction_sent_info;

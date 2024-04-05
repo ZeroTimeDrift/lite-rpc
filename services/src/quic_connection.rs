@@ -5,7 +5,6 @@ use futures::FutureExt;
 use log::warn;
 use prometheus::{core::GenericGauge, opts, register_int_gauge};
 use quinn::{Connection, Endpoint, VarInt};
-use solana_lite_rpc_core::structures::rotating_queue::RotatingQueue;
 use solana_sdk::pubkey::Pubkey;
 use std::{
     net::SocketAddr,
@@ -15,8 +14,6 @@ use std::{
     },
 };
 use tokio::sync::{broadcast, OwnedSemaphorePermit, RwLock, Semaphore};
-
-pub type EndpointPool = RotatingQueue<Endpoint>;
 
 lazy_static::lazy_static! {
     static ref NB_QUIC_CONNECTION_RESET: GenericGauge<prometheus::core::AtomicI64> =
@@ -251,7 +248,7 @@ pub struct PooledConnection {
 impl QuicConnectionPool {
     pub fn new(
         identity: Pubkey,
-        endpoints: EndpointPool,
+        endpoint: Endpoint,
         socket_address: SocketAddr,
         connection_parameters: QuicConnectionParameters,
         nb_connection: usize,
@@ -262,7 +259,7 @@ impl QuicConnectionPool {
         for _ in 0..nb_connection {
             connections.push(QuicConnection::new(
                 identity,
-                endpoints.get().expect("Should get and endpoint"),
+                endpoint.clone(),
                 socket_address,
                 connection_parameters,
             ));

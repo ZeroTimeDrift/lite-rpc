@@ -461,8 +461,6 @@ async fn start_literpc_client_direct_mode(
 ) -> anyhow::Result<()> {
     info!("Start lite-rpc test client in direct-mode...");
 
-    let fanout_slots = 4;
-
     // (String, Vec<u8>) (signature, transaction)
     let (sender, _) = tokio::sync::broadcast::channel(MAXIMUM_TRANSACTIONS_IN_QUEUE);
     let broadcast_sender = Arc::new(sender);
@@ -472,8 +470,7 @@ async fn start_literpc_client_direct_mode(
     )
     .expect("Failed to initialize QUIC connection certificates");
 
-    let tpu_connection_manager =
-        TpuConnectionManager::new(certificate, key, fanout_slots as usize).await;
+    let tpu_connection_manager = TpuConnectionManager::new(certificate, key).await;
 
     // this effectively controls how many connections we will have
     let mut connections_to_keep = HashSet::<(Pubkey, SocketAddr)>::new();

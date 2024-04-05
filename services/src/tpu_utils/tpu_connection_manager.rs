@@ -8,7 +8,7 @@ use solana_lite_rpc_core::{
     stores::data_cache::DataCache,
     structures::{
         identity_stakes::IdentityStakesData, prioritization_fee_heap::PrioritizationFeesHeap,
-        rotating_queue::RotatingQueue, transaction_sent_info::SentTransactionInfo,
+        transaction_sent_info::SentTransactionInfo,
     },
 };
 use solana_sdk::pubkey::Pubkey;
@@ -43,7 +43,7 @@ lazy_static::lazy_static! {
 
 #[derive(Clone)]
 struct ActiveConnection {
-    endpoints: RotatingQueue<Endpoint>,
+    endpoint: Endpoint,
     identity: Pubkey,
     tpu_address: SocketAddr,
     data_cache: DataCache,
@@ -53,7 +53,7 @@ struct ActiveConnection {
 
 impl ActiveConnection {
     pub fn new(
-        endpoints: RotatingQueue<Endpoint>,
+        endpoint: Endpoint,
         tpu_address: SocketAddr,
         identity: Pubkey,
         data_cache: DataCache,
@@ -61,7 +61,7 @@ impl ActiveConnection {
     ) -> Self {
         let (exit_notifier, _) = broadcast::channel(1);
         Self {
-            endpoints,
+            endpoint,
             tpu_address,
             identity,
             data_cache,
@@ -92,7 +92,7 @@ impl ActiveConnection {
         );
         let connection_pool = QuicConnectionPool::new(
             identity,
-            self.endpoints.clone(),
+            self.endpoint.clone(),
             addr,
             self.connection_parameters,
             max_number_of_connections,
@@ -241,21 +241,14 @@ impl ActiveConnection {
 }
 
 pub struct TpuConnectionManager {
-    endpoints: RotatingQueue<Endpoint>,
+    endpoint: Endpoint,
     active_connections: Arc<DashMap<(Pubkey, SocketAddr), ActiveConnection>>,
 }
 
 impl TpuConnectionManager {
-    pub async fn new(
-        certificate: rustls::Certificate,
-        key: rustls::PrivateKey,
-        _fanout: usize,
-    ) -> Self {
-        let number_of_clients = 1; // fanout * 4;
+    pub async fn new(certificate: rustls::Certificate, key: rustls::PrivateKey) -> Self {
         Self {
-            endpoints: RotatingQueue::new(number_of_clients, || {
-                QuicConnectionUtils::create_endpoint(certificate.clone(), key.clone())
-            }),
+            endpoint: QuicConnectionUtils::create_endpoint(certificate.clone(), key.clone()),
             active_connections: Arc::new(DashMap::new()),
         }
     }
@@ -274,7 +267,7 @@ impl TpuConnectionManager {
             if self.active_connections.get(&connection_key).is_none() {
                 trace!("added a connection for {}, {}", identity, socket_addr);
                 let active_connection = ActiveConnection::new(
-                    self.endpoints.clone(),
+                    self.endpoint.clone(),
                     *socket_addr,
                     *identity,
                     data_cache.clone(),

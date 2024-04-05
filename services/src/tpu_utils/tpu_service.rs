@@ -81,8 +81,7 @@ impl TpuService {
 
         let connection_manager = match config.tpu_connection_path {
             TpuConnectionPath::QuicDirectPath => {
-                let tpu_connection_manager =
-                    TpuConnectionManager::new(certificate, key, config.fanout_slots as usize).await;
+                let tpu_connection_manager = TpuConnectionManager::new(certificate, key).await;
                 DirectTpu {
                     tpu_connection_manager: Arc::new(tpu_connection_manager),
                 }
