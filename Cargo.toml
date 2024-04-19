@@ -94,3 +94,5 @@ geyser-grpc-connector = { tag = "v0.10.6+yellowstone.1.13+solana.1.17.28", git =
 
 async-trait = "0.1.68"
 tonic-health = "0.10"
+lz4 = "1.24.0"
+zstd = "0.11.2"

@@ -438,9 +438,10 @@ mod tests {
     use itertools::Itertools;
     use rand::{rngs::ThreadRng, Rng};
     use solana_lite_rpc_core::{
-        commitment_utils::Commitment, structures::account_data::AccountData,
+        commitment_utils::Commitment,
+        structures::account_data::{Account, AccountData},
     };
-    use solana_sdk::{account::Account, pubkey::Pubkey, slot_history::Slot};
+    use solana_sdk::{account::Account as SolanaAccount, pubkey::Pubkey, slot_history::Slot};
 
     use crate::{
         account_store_interface::AccountStorageInterface,
@@ -454,15 +455,19 @@ mod tests {
         program: Pubkey,
     ) -> AccountData {
         let length: usize = rng.gen_range(100..1000);
+        let sol_account = SolanaAccount {
+            lamports: rng.gen(),
+            data: (0..length).map(|_| rng.gen::<u8>()).collect_vec(),
+            owner: program,
+            executable: false,
+            rent_epoch: 0,
+        };
         AccountData {
             pubkey,
-            account: Arc::new(Account {
-                lamports: rng.gen(),
-                data: (0..length).map(|_| rng.gen::<u8>()).collect_vec(),
-                owner: program,
-                executable: false,
-                rent_epoch: 0,
-            }),
+            account: Arc::new(Account::from_solana_account(
+                sol_account,
+                solana_lite_rpc_core::structures::account_data::CompressionMethod::None,
+            )),
             updated_slot,
         }
     }

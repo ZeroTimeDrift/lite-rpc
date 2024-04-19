@@ -4688,6 +4688,7 @@ dependencies = [
  "futures",
  "itertools 0.10.5",
  "log",
+ "lz4",
  "prometheus",
  "quinn",
  "rand 0.8.5",
@@ -4706,6 +4707,7 @@ dependencies = [
  "solana-version",
  "thiserror",
  "tokio",
+ "zstd 0.11.2+zstd.1.5.2",
 ]
 
 [[package]]

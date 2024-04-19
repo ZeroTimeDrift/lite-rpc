@@ -174,7 +174,7 @@ impl AccountService {
         let data_slice = config.as_ref().map(|c| c.data_slice).unwrap_or_default();
         UiAccount::encode(
             &account_data.pubkey,
-            account_data.account.as_ref(),
+            &account_data.account.to_solana_account(),
             encoding,
             None,
             data_slice,

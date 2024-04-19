@@ -14,12 +14,12 @@ use itertools::Itertools;
 use solana_lite_rpc_core::{
     commitment_utils::Commitment,
     structures::{
-        account_data::{AccountData, AccountNotificationMessage},
+        account_data::{Account, AccountData, AccountNotificationMessage},
         account_filter::{AccountFilterType, AccountFilters, MemcmpFilterData},
     },
     AnyhowJoinHandle,
 };
-use solana_sdk::{account::Account, pubkey::Pubkey};
+use solana_sdk::{account::Account as SolanaAccount, pubkey::Pubkey};
 use tokio::sync::Notify;
 use yellowstone_grpc_proto::geyser::{
     subscribe_request_filter_accounts_filter::Filter,
@@ -177,16 +177,19 @@ pub fn start_account_streaming_tasks(
                                 .owner
                                 .try_into()
                                 .expect("owner pubkey should be deserializable");
+
+                            let solana_account = SolanaAccount {
+                                lamports: account_data.lamports,
+                                data: account_data.data,
+                                owner: Pubkey::new_from_array(owner),
+                                executable: account_data.executable,
+                                rent_epoch: account_data.rent_epoch,
+                            };
+
                             let notification = AccountNotificationMessage {
                                 data: AccountData {
                                     pubkey: Pubkey::new_from_array(account_pk_bytes),
-                                    account: Arc::new(Account {
-                                        lamports: account_data.lamports,
-                                        data: account_data.data,
-                                        owner: Pubkey::new_from_array(owner),
-                                        executable: account_data.executable,
-                                        rent_epoch: account_data.rent_epoch,
-                                    }),
+                                    account: Arc::new(Account::from_solana_account(solana_account, solana_lite_rpc_core::structures::account_data::CompressionMethod::Lz4(8))),
                                     updated_slot: account.slot,
                                 },
                                 // TODO update with processed commitment / check above
