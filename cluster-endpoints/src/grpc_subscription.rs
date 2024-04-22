@@ -5,7 +5,9 @@ use crate::grpc_multiplex::{
 };
 use anyhow::Context;
 use futures::StreamExt;
-use geyser_grpc_connector::yellowstone_grpc_util::{connect_with_timeout_with_buffers, GeyserGrpcClientBufferConfig};
+use geyser_grpc_connector::yellowstone_grpc_util::{
+    connect_with_timeout_with_buffers, GeyserGrpcClientBufferConfig,
+};
 use geyser_grpc_connector::GrpcSourceConfig;
 use itertools::Itertools;
 use log::trace;

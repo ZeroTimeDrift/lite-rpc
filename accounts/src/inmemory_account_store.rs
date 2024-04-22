@@ -95,8 +95,9 @@ impl AccountDataByCommitment {
         // processed not present for the slot
         // grpc can send multiple inter transaction changed account states for same slot
         // we have to update till we get the last
-        if commitment == Commitment::Processed || !self.processed_accounts.contains_key(&data.updated_slot){
-
+        if commitment == Commitment::Processed
+            || !self.processed_accounts.contains_key(&data.updated_slot)
+        {
             self.processed_accounts
                 .insert(data.updated_slot, data.clone());
             updated = true;
@@ -413,7 +414,11 @@ impl AccountStorageInterface for InmemoryAccountStore {
                 }
                 None => {
                     if commitment == Commitment::Confirmed {
-                        log::warn!("slot status not found for {} and commitment {}, confirmed lagging", slot, commitment.into_commitment_level());
+                        log::warn!(
+                            "slot status not found for {} and commitment {}, confirmed lagging",
+                            slot,
+                            commitment.into_commitment_level()
+                        );
                     } else if commitment == Commitment::Finalized {
                         log::error!("slot status not found for {} and commitment {}, should be normal during startup", slot, commitment.into_commitment_level());
                     }

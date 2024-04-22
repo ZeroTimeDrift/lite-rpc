@@ -1,12 +1,18 @@
 use std::time::Duration;
 
 use bytes::Bytes;
-use geyser_grpc_connector::{yellowstone_grpc_util::GeyserGrpcClientBufferConfig, GeyserGrpcClient, GeyserGrpcClientResult};
-use tonic::{codec::CompressionEncoding, metadata::{errors::InvalidMetadataValue, AsciiMetadataValue}, service::Interceptor, transport::ClientTlsConfig};
+use geyser_grpc_connector::{
+    yellowstone_grpc_util::GeyserGrpcClientBufferConfig, GeyserGrpcClient, GeyserGrpcClientResult,
+};
+use tonic::{
+    codec::CompressionEncoding,
+    metadata::{errors::InvalidMetadataValue, AsciiMetadataValue},
+    service::Interceptor,
+    transport::ClientTlsConfig,
+};
 use tonic_health::pb::health_client::HealthClient;
-use yellowstone_grpc_proto::geyser::geyser_client::GeyserClient;
 use yellowstone_grpc_client::InterceptorXToken;
-
+use yellowstone_grpc_proto::geyser::geyser_client::GeyserClient;
 
 pub async fn connect_with_timeout_with_buffers_and_compression<E, T>(
     endpoint: E,
