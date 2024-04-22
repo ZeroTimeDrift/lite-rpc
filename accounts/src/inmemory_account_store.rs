@@ -3,7 +3,6 @@ use std::{collections::HashSet, sync::Arc};
 use crate::account_store_interface::{AccountLoadingError, AccountStorageInterface};
 use async_trait::async_trait;
 use dashmap::DashMap;
-use log::warn;
 use prometheus::{opts, register_int_gauge, IntGauge};
 use solana_lite_rpc_core::{commitment_utils::Commitment, structures::account_data::AccountData};
 use solana_rpc_client_api::filter::RpcFilterType;
@@ -93,8 +92,11 @@ impl AccountDataByCommitment {
             .unwrap_or(true);
 
         let mut updated = false;
-        if self.processed_accounts.get(&data.updated_slot).is_none() {
-            // processed not present for the slot
+        // processed not present for the slot
+        // grpc can send multiple inter transaction changed account states for same slot
+        // we have to update till we get the last
+        if commitment == Commitment::Processed || !self.processed_accounts.contains_key(&data.updated_slot){
+
             self.processed_accounts
                 .insert(data.updated_slot, data.clone());
             updated = true;
@@ -300,12 +302,6 @@ impl AccountStorageInterface for InmemoryAccountStore {
         let commitment = self
             .maybe_update_slot_status(&account_data, commitment)
             .await;
-        log::info!(
-            "got account {} at {} {}",
-            account_data.pubkey.to_string(),
-            account_data.updated_slot,
-            commitment.into_commitment_level().to_string()
-        );
 
         match self.account_store.entry(account_data.pubkey) {
             dashmap::mapref::entry::Entry::Occupied(mut occ) => {
@@ -416,7 +412,11 @@ impl AccountStorageInterface for InmemoryAccountStore {
                     status.accounts_updated.clone()
                 }
                 None => {
-                    warn!("slot status not found for {} and commitment {}, should be normal during startup", slot, commitment.into_commitment_level());
+                    if commitment == Commitment::Confirmed {
+                        log::warn!("slot status not found for {} and commitment {}, confirmed lagging", slot, commitment.into_commitment_level());
+                    } else if commitment == Commitment::Finalized {
+                        log::error!("slot status not found for {} and commitment {}, should be normal during startup", slot, commitment.into_commitment_level());
+                    }
                     let status = SlotStatus {
                         commitment,
                         accounts_updated: HashSet::new(),

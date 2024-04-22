@@ -4668,8 +4668,10 @@ dependencies = [
  "thiserror",
  "tokio",
  "tokio-stream",
+ "tonic",
  "tonic-health",
  "tracing",
+ "yellowstone-grpc-client",
  "yellowstone-grpc-proto",
 ]
 
@@ -6102,6 +6104,7 @@ dependencies = [
  "axum",
  "base64 0.21.7",
  "bytes",
+ "flate2",
  "h2",
  "http",
  "http-body",

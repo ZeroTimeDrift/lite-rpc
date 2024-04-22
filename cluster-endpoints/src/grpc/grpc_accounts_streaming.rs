@@ -6,9 +6,7 @@ use std::{
     time::Duration,
 };
 
-use geyser_grpc_connector::yellowstone_grpc_util::{
-    connect_with_timeout_with_buffers, GeyserGrpcClientBufferConfig,
-};
+use geyser_grpc_connector::yellowstone_grpc_util::GeyserGrpcClientBufferConfig;
 use geyser_grpc_connector::{GeyserGrpcClient, GeyserGrpcClientResult, GrpcSourceConfig};
 use itertools::Itertools;
 use solana_lite_rpc_core::{
@@ -28,6 +26,8 @@ use yellowstone_grpc_proto::geyser::{
     SubscribeRequestFilterAccountsFilterMemcmp,
 };
 use yellowstone_grpc_proto::tonic::service::Interceptor;
+
+use super::grpc_utils::connect_with_timeout_with_buffers_and_compression;
 
 pub fn start_account_streaming_tasks(
     grpc_config: GrpcSourceConfig,
@@ -220,7 +220,7 @@ pub fn start_account_streaming_tasks(
 async fn create_connection(
     grpc_config: &GrpcSourceConfig,
 ) -> GeyserGrpcClientResult<GeyserGrpcClient<impl Interceptor + Sized>> {
-    connect_with_timeout_with_buffers(
+    connect_with_timeout_with_buffers_and_compression(
         grpc_config.grpc_addr.clone(),
         grpc_config.grpc_x_token.clone(),
         None,

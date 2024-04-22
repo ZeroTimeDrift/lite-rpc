@@ -4,7 +4,7 @@ use anyhow::bail;
 use itertools::Itertools;
 use prometheus::{opts, register_int_gauge, IntGauge};
 use solana_account_decoder::UiAccount;
-use solana_lite_rpc_core::types::BlockStream;
+use solana_lite_rpc_core::types::BlockInfoStream;
 use solana_lite_rpc_core::{
     commitment_utils::Commitment,
     structures::{
@@ -78,7 +78,7 @@ impl AccountService {
     pub fn process_account_stream(
         &self,
         mut account_stream: AccountStream,
-        mut block_stream: BlockStream,
+        mut block_stream: BlockInfoStream,
     ) -> Vec<AnyhowJoinHandle> {
         let this = self.clone();
         let processed_task = tokio::spawn(async move {
