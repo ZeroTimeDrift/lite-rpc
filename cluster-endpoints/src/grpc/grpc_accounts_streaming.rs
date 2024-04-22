@@ -189,7 +189,7 @@ pub fn start_account_streaming_tasks(
                             let notification = AccountNotificationMessage {
                                 data: AccountData {
                                     pubkey: Pubkey::new_from_array(account_pk_bytes),
-                                    account: Arc::new(Account::from_solana_account(solana_account, solana_lite_rpc_core::structures::account_data::CompressionMethod::Lz4(8))),
+                                    account: Arc::new(Account::from_solana_account(solana_account, solana_lite_rpc_core::structures::account_data::CompressionMethod::Lz4(1))),
                                     updated_slot: account.slot,
                                 },
                                 // TODO update with processed commitment / check above

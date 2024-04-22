@@ -2,12 +2,14 @@ use std::{collections::HashSet, sync::Arc};
 
 use crate::account_store_interface::{AccountLoadingError, AccountStorageInterface};
 use async_trait::async_trait;
-use dashmap::{DashMap, DashSet};
+use dashmap::DashMap;
+use log::warn;
 use prometheus::{opts, register_int_gauge, IntGauge};
 use solana_lite_rpc_core::{commitment_utils::Commitment, structures::account_data::AccountData};
 use solana_rpc_client_api::filter::RpcFilterType;
 use solana_sdk::{pubkey::Pubkey, slot_history::Slot};
 use std::collections::BTreeMap;
+use tokio::sync::Mutex;
 
 lazy_static::lazy_static! {
     static ref ACCOUNT_STORED_IN_MEMORY: IntGauge =
@@ -199,18 +201,23 @@ impl AccountDataByCommitment {
     }
 }
 
+struct SlotStatus {
+    pub commitment: Commitment,
+    pub accounts_updated: HashSet<Pubkey>,
+}
+
 pub struct InmemoryAccountStore {
     account_store: Arc<DashMap<Pubkey, AccountDataByCommitment>>,
-    confirmed_slots_map: DashSet<Slot>,
     accounts_by_owner: Arc<DashMap<Pubkey, HashSet<Pubkey>>>,
+    slots_status: Arc<Mutex<BTreeMap<Slot, SlotStatus>>>,
 }
 
 impl InmemoryAccountStore {
     pub fn new() -> Self {
         Self {
             account_store: Arc::new(DashMap::new()),
-            confirmed_slots_map: DashSet::new(),
             accounts_by_owner: Arc::new(DashMap::new()),
+            slots_status: Arc::new(Mutex::new(BTreeMap::new())),
         }
     }
 
@@ -253,22 +260,52 @@ impl InmemoryAccountStore {
             self.add_account_owner(new_account_data.pubkey, new_account_data.account.owner);
         }
     }
+
+    async fn maybe_update_slot_status(
+        &self,
+        account_data: &AccountData,
+        commitment: Commitment,
+    ) -> Commitment {
+        let slot = account_data.updated_slot;
+        let mut lk = self.slots_status.lock().await;
+        let slot_status = match lk.get_mut(&slot) {
+            Some(x) => x,
+            None => {
+                lk.insert(
+                    slot,
+                    SlotStatus {
+                        commitment,
+                        accounts_updated: HashSet::new(),
+                    },
+                );
+                lk.get_mut(&slot).unwrap()
+            }
+        };
+        match commitment {
+            Commitment::Processed => {
+                // insert account into slot status
+                slot_status.accounts_updated.insert(account_data.pubkey);
+                slot_status.commitment
+            }
+            Commitment::Confirmed => slot_status.commitment,
+            Commitment::Finalized => commitment,
+        }
+    }
 }
 
 #[async_trait]
 impl AccountStorageInterface for InmemoryAccountStore {
     async fn update_account(&self, account_data: AccountData, commitment: Commitment) -> bool {
-        let slot = account_data.updated_slot;
         // check if the blockhash and slot is already confirmed
-        let commitment = if commitment == Commitment::Processed {
-            if self.confirmed_slots_map.contains(&slot) {
-                Commitment::Confirmed
-            } else {
-                Commitment::Processed
-            }
-        } else {
-            commitment
-        };
+        let commitment = self
+            .maybe_update_slot_status(&account_data, commitment)
+            .await;
+        log::info!(
+            "got account {} at {} {}",
+            account_data.pubkey.to_string(),
+            account_data.updated_slot,
+            commitment.into_commitment_level().to_string()
+        );
 
         match self.account_store.entry(account_data.pubkey) {
             dashmap::mapref::entry::Entry::Occupied(mut occ) => {
@@ -297,6 +334,8 @@ impl AccountStorageInterface for InmemoryAccountStore {
     }
 
     async fn initilize_or_update_account(&self, account_data: AccountData) {
+        self.maybe_update_slot_status(&account_data, Commitment::Finalized)
+            .await;
         match self.account_store.contains_key(&account_data.pubkey) {
             true => {
                 // account has already been filled by an event
@@ -358,36 +397,35 @@ impl AccountStorageInterface for InmemoryAccountStore {
         }
     }
 
-    async fn process_slot_data(
-        &self,
-        slot: Slot,
-        commitment: Commitment,
-        writable_accounts: HashSet<Pubkey>,
-    ) -> Vec<AccountData> {
-        match commitment {
-            Commitment::Confirmed => {
-                // insert slot and blockhash that were confirmed
-                {
-                    self.confirmed_slots_map.insert(slot);
-                }
-            }
-            Commitment::Finalized => {
-                // remove finalized slots form confirmed map
-                {
-                    if self.confirmed_slots_map.remove(&slot).is_none() {
-                        log::warn!(
-                            "following slot {} were not confirmed by account storage",
-                            slot
-                        );
+    async fn process_slot_data(&self, slot: Slot, commitment: Commitment) -> Vec<AccountData> {
+        let writable_accounts = {
+            let mut lk = self.slots_status.lock().await;
+            // remove old slot status if finalized
+            if commitment == Commitment::Finalized {
+                while let Some(entry) = lk.first_entry() {
+                    if *entry.key() < slot {
+                        entry.remove();
+                    } else {
+                        break;
                     }
                 }
             }
-            Commitment::Processed => {
-                // processed should not use update_slot_data
-                log::error!("Processed commitment is not treated by process_slot_data method");
-                return vec![];
+            match lk.get_mut(&slot) {
+                Some(status) => {
+                    status.commitment = commitment;
+                    status.accounts_updated.clone()
+                }
+                None => {
+                    warn!("slot status not found for {} and commitment {}, should be normal during startup", slot, commitment.into_commitment_level());
+                    let status = SlotStatus {
+                        commitment,
+                        accounts_updated: HashSet::new(),
+                    };
+                    lk.insert(slot, status);
+                    HashSet::new()
+                }
             }
-        }
+        };
 
         let mut updated_accounts = vec![];
         for writable_account in writable_accounts {
@@ -552,9 +590,7 @@ mod tests {
             Ok(Some(account_data_0.clone()))
         );
 
-        store
-            .process_slot_data(1, Commitment::Confirmed, pubkeys.clone())
-            .await;
+        store.process_slot_data(1, Commitment::Confirmed).await;
 
         assert_eq!(
             store.get_account(pk1, Commitment::Processed).await,
@@ -569,9 +605,7 @@ mod tests {
             Ok(Some(account_data_0.clone()))
         );
 
-        store
-            .process_slot_data(2, Commitment::Confirmed, pubkeys.clone())
-            .await;
+        store.process_slot_data(2, Commitment::Confirmed).await;
 
         assert_eq!(
             store.get_account(pk1, Commitment::Processed).await,
@@ -586,9 +620,7 @@ mod tests {
             Ok(Some(account_data_0.clone()))
         );
 
-        store
-            .process_slot_data(1, Commitment::Finalized, pubkeys)
-            .await;
+        store.process_slot_data(1, Commitment::Finalized).await;
 
         assert_eq!(
             store.get_account(pk1, Commitment::Processed).await,
@@ -700,9 +732,7 @@ mod tests {
                 .len(),
             12
         );
-        store
-            .process_slot_data(11, Commitment::Finalized, pubkeys.clone())
-            .await;
+        store.process_slot_data(11, Commitment::Finalized).await;
         assert_eq!(
             store
                 .account_store
@@ -719,9 +749,7 @@ mod tests {
         );
 
         // check finalizing previous commitment does not affect
-        store
-            .process_slot_data(8, Commitment::Finalized, pubkeys)
-            .await;
+        store.process_slot_data(8, Commitment::Finalized).await;
 
         assert_eq!(
             store.get_account(pk1, Commitment::Finalized).await,
@@ -739,7 +767,6 @@ mod tests {
         let mut rng = rand::thread_rng();
 
         let pks = (0..5).map(|_| Pubkey::new_unique()).collect_vec();
-        let pubkeys: HashSet<Pubkey> = pks.iter().cloned().collect();
 
         store
             .update_account(
@@ -818,9 +845,7 @@ mod tests {
             .await;
         assert!(acc_prgram_3.is_none());
 
-        store
-            .process_slot_data(1, Commitment::Finalized, pubkeys.clone())
-            .await;
+        store.process_slot_data(1, Commitment::Finalized).await;
 
         let acc_prgram_1 = store
             .get_program_accounts(prog_1, None, Commitment::Finalized)
@@ -840,9 +865,7 @@ mod tests {
         store
             .update_account(account_finalized.clone(), Commitment::Finalized)
             .await;
-        store
-            .process_slot_data(2, Commitment::Finalized, pubkeys.clone())
-            .await;
+        store.process_slot_data(2, Commitment::Finalized).await;
 
         let account_confirmed = create_random_account(&mut rng, 3, pk, prog_3);
         store
@@ -877,12 +900,8 @@ mod tests {
 
         assert_eq!(f, Some(vec![account_finalized.clone()]));
 
-        store
-            .process_slot_data(3, Commitment::Finalized, pubkeys.clone())
-            .await;
-        store
-            .process_slot_data(4, Commitment::Confirmed, pubkeys.clone())
-            .await;
+        store.process_slot_data(3, Commitment::Finalized).await;
+        store.process_slot_data(4, Commitment::Confirmed).await;
 
         let f = store
             .get_program_accounts(prog_3, None, Commitment::Finalized)
@@ -900,9 +919,7 @@ mod tests {
         assert_eq!(p_3, Some(vec![]));
         assert_eq!(p_4, Some(vec![account_processed.clone()]));
 
-        store
-            .process_slot_data(4, Commitment::Finalized, pubkeys)
-            .await;
+        store.process_slot_data(4, Commitment::Finalized).await;
         let p_3 = store
             .get_program_accounts(prog_3, None, Commitment::Finalized)
             .await;

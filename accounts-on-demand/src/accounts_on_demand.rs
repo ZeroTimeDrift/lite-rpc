@@ -1,8 +1,4 @@
-use std::{
-    collections::{HashMap, HashSet},
-    sync::Arc,
-    time::Duration,
-};
+use std::{collections::HashMap, sync::Arc, time::Duration};
 
 use async_trait::async_trait;
 use dashmap::DashSet;
@@ -222,14 +218,9 @@ impl AccountStorageInterface for AccountsOnDemand {
             .await
     }
 
-    async fn process_slot_data(
-        &self,
-        slot: Slot,
-        commitment: Commitment,
-        pubkeys: HashSet<Pubkey>,
-    ) -> Vec<AccountData> {
+    async fn process_slot_data(&self, slot: Slot, commitment: Commitment) -> Vec<AccountData> {
         self.accounts_storage
-            .process_slot_data(slot, commitment, pubkeys)
+            .process_slot_data(slot, commitment)
             .await
     }
 }

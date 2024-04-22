@@ -1,4 +1,3 @@
-use std::collections::HashSet;
 use std::sync::Arc;
 
 use anyhow::bail;
@@ -122,16 +121,9 @@ impl AccountService {
                             continue;
                         }
                         let commitment = Commitment::from(block.commitment_config);
-
-                        let accounts_write_updated: HashSet<Pubkey> = block
-                            .transactions
-                            .iter()
-                            .filter(|x| x.err.is_none())
-                            .flat_map(|x| x.writable_accounts.clone())
-                            .collect();
                         let updated_accounts = this
                             .account_store
-                            .process_slot_data(block.slot, commitment, accounts_write_updated)
+                            .process_slot_data(block.slot, commitment)
                             .await;
 
                         if block.commitment_config.is_finalized() {
