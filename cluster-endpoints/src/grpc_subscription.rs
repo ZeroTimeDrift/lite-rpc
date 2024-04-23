@@ -302,6 +302,7 @@ pub fn create_block_processing_task(
                     conn_window: Some(5242880),
                     stream_window: Some(4194304),
                 },
+                true,
             )
             .await?;
             let mut stream = tokio::select! {

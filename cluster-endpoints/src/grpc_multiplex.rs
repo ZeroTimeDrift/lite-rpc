@@ -42,6 +42,7 @@ fn create_grpc_multiplex_processed_block_task(
             GeyserFilter(COMMITMENT_CONFIG).blocks_and_txs(),
             autoconnect_tx.clone(),
             exit_notify.resubscribe(),
+            true,
         );
         tasks.push(task);
     }
@@ -145,6 +146,7 @@ fn create_grpc_multiplex_block_info_task(
             GeyserFilter(commitment_config).blocks_meta(),
             autoconnect_tx.clone(),
             exit_notify.resubscribe(),
+            false,
         );
         tasks.push(task);
     }
@@ -494,6 +496,7 @@ pub fn create_grpc_multiplex_processed_slots_subscription(
                         GeyserFilter(COMMITMENT_CONFIG).slots(),
                         autoconnect_tx.clone(),
                         exit_notify.resubscribe(),
+                        false,
                     )
                 })
                 .collect_vec();
