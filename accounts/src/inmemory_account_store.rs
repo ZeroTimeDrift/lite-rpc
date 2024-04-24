@@ -414,7 +414,7 @@ impl AccountStorageInterface for InmemoryAccountStore {
                 }
                 None => {
                     if commitment == Commitment::Confirmed {
-                        log::warn!(
+                        log::debug!(
                             "slot status not found for {} and commitment {}, confirmed lagging",
                             slot,
                             commitment.into_commitment_level()

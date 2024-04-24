@@ -53,7 +53,7 @@ fn create_grpc_multiplex_processed_block_task(
         'recv_loop: loop {
             // recv loop
             if last_tick.elapsed() > Duration::from_millis(800) {
-                warn!(
+                trace!(
                     "(soft_realtime) slow multiplex loop interation: {:?}",
                     last_tick.elapsed()
                 );
